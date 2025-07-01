@@ -1,0 +1,11 @@
+SYN-MAD22
+models
+myenv
+*.npy
+triplets
+*.zip
+*.pdf
+*.pptx
+.DS_Store
+__pycache__
+embeddings
