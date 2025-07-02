@@ -8,7 +8,7 @@ Assess the effectiveness of current attack methods by measuring their successful
             <th>Dataset</th>
             <th>ElasticFaceArc<br><sub>Success Rate</sub></th>
             <th>ElasticFaceCos<br><sub>Success Rate</sub></th>
-            <th>Model C<br><sub>Success Rate</sub></th>
+            <th>CurricularFace<br><sub>Success Rate</sub></th>
         </tr>
     </thead>
     <tbody>
