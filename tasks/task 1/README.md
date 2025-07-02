@@ -44,9 +44,10 @@ Assess the effectiveness of current attack methods by measuring their successful
         </tr>
         <tr>
             <td>OpenCV_aligned</td>
-            <td align="center">0.9929</td>
-            <td align="center">0.9959</td>
-            <td align="center">0.9929</td>
+            <td align="center"><b>0.9929</b></td>
+            <td align="center"><b>0.9959</b></td>
+            <td align="center"><b>0.9929</b></td>
+        </tr>
         </tr>
     </tbody>
 </table>
