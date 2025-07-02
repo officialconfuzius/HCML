@@ -1,6 +1,6 @@
 # Main
 import os
-
+import argparse
 import cv2
 import numpy as np
 import torch
@@ -9,183 +9,145 @@ from tqdm import tqdm
 from backbones.curr_resnet import curr_iresnet100
 from backbones.elastic_resnet import elastic_iresnet100
 
-# SET THIS VARIABLE: 'model'
-# Model selection
-# Options: 'ElasticFaceArc', 'ElasticFaceCos', 'CurricularFace'
-model = 'ElasticFaceCos'
-model_path = f"models/{model}.pth"  # Path to the model .pth file
-
-# SET THIS VARIABLE: 'morphing_dataset'
-# Which morphing dataset (i.e. images) to use
-# Options: 'BonaFide_aligned' (for benign samples), FaceMorpher_aligned and others in SYN-MAD directory!
-morphing_dataset = 'FaceMorpher_aligned'
-# Path to the morphing dataset
-morphing_path = f"SYN-MAD22/{morphing_dataset}/"
-
-# SET THIS VARIABLE: dest_path, you only need to change the 'embeddings' folder name
-# in case your working directory is different
-# Destination path for embeddings
-dest_path = f"embeddings/{model}_{morphing_dataset}"
-
-
-# Thresholds
-thr_arc_base_100 = 0.21402553   # ElasticFace-Arc FNMR@FMR = 1%
-thr_cos_base_100 = 0.18321043   # ElasticFace-Cos FNMR@FMR = 1%
-thr_cur_base_100 = 0.1901376    # CurricularFace FNMR@FMR = 1%
-
-thr_arc_base_1000 = 0.29908442  # ElasticFace-Arc FNMR@FMR = 0.1%
-thr_cos_base_1000 = 0.26074028  # ElasticFace-Cos FNMR@FMR = 0.1%
-thr_cur_base_1000 = 0.26934636  # CurricularFace FNMR@FMR = 0.1%
-
-# SET THIS VARIABLE: fnmr_at_fmr
-# Options: 0.01 (FNMR@FMR = 1%) or 0.001 (FNMR@FMR = 0.1%)
-fnmr_at_fmr = 0.01
-thresh = thr_arc_base_100 if model == 'ElasticFaceArc' and fnmr_at_fmr == 0.01 else \
-    thr_cos_base_100 if model == 'ElasticFaceCos' and fnmr_at_fmr == 0.01 else \
-    thr_cur_base_100 if model == 'CurricularFace' and fnmr_at_fmr == 0.01 else \
-    thr_arc_base_1000 if model == 'ElasticFaceArc' and fnmr_at_fmr == 0.001 else \
-    thr_cos_base_1000 if model == 'ElasticFaceCos' and fnmr_at_fmr == 0.001 else \
-    thr_cur_base_1000 if model == 'CurricularFace' and fnmr_at_fmr == 0.001 else \
-    None
-
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-# Calculates cosine similarity between vector a and b
+# ==========================================================================================
+# Original Helper Functions (No changes needed here)
+# ==========================================================================================
 
 
 def cos_sim(a, b):
+    """Calculates cosine similarity between vector a and b."""
     a, b = a.reshape(-1), b.reshape(-1)
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-# Load FR model
 
-
-def load_model(model, model_path, device):
+def load_model(model_name, model_path, device):
     """Load model from path_model."""
     if not os.path.exists(model_path):
-        raise Exception("Model file does not exist!", model_path)
-    if model in ['ElasticFaceArc', 'ElasticFaceCos']:
+        raise Exception(f"Model file not found at: {model_path}")
+    if model_name in ["ElasticFaceArc", "ElasticFaceCos"]:
         backbone = elastic_iresnet100(num_features=512).to(device)
-        backbone.load_state_dict(torch.load(model_path, map_location=device))
-    elif model == 'CurricularFace':
+    elif model_name == "CurricularFace":
         backbone = curr_iresnet100().to(device)
-        backbone.load_state_dict(torch.load(model_path, map_location=device))
     else:
-        raise Exception("Cannot load unknown model:", model)
+        raise Exception("Cannot load unknown model:", model_name)
 
+    backbone.load_state_dict(torch.load(model_path, map_location=device))
     backbone.eval()
     return backbone
 
-# iterates over images
-
 
 def image_iter(path):
-    """Return image paths in filepath."""
+    """Return image paths and filenames in filepath."""
     image_paths = []
     file_names = []
-
-    for path, subdirs, files in os.walk(path):
+    for path, _, files in os.walk(path):
         for name in files:
-            image_paths.append(os.path.join(path, name))
-            file_names.append(name)
+            if name.lower().endswith((".png", ".jpg", ".jpeg")):
+                image_paths.append(os.path.join(path, name))
+                file_names.append(name)
     image_paths.sort()
+    file_names.sort()
     return image_paths, file_names
 
-# Loads and normalizes images
 
-
-def load_imgs(src_path, transfrom, tensor):
+def load_and_prep_images(src_path, morphing_dataset_name):
+    """Loads images, normalizes them, and generates a triplet file if applicable."""
     img_paths, file_names = image_iter(src_path)
-
     imgs = []
+    triplet_file_name = (
+        f"triplets/SYN-MAD22_{morphing_dataset_name}_triples_selfmade.txt"
+    )
 
-    # Triplet file name
-    triplet_file_name = f'triplets/SYN-MAD22_{morphing_dataset}_triples_selfmade.txt'
+    # Create directory for triplets if it doesn't exist
+    os.makedirs(os.path.dirname(triplet_file_name), exist_ok=True)
 
-    for p in tqdm(img_paths, desc="Load images"):
+    # Clear previous triplet file if it exists, as we are regenerating embeddings
+    if os.path.exists(triplet_file_name):
+        os.remove(triplet_file_name)
 
-        # Create triplets
-        img_name = p.split("/")[-1]
+    for p in tqdm(img_paths, desc=f"Loading images from {morphing_dataset_name}"):
+        img_name = os.path.basename(p)
         if "vs" in img_name:
             morph_img = img_name
-            benign_img1 = img_name.split("-")[0] + ".jpg"
-            benign_img2 = img_name.split("-")[2].split(".")[0] + ".jpg"
-            # write this triplet to a file
+            try:
+                benign_img1 = img_name.split("-")[0] + ".jpg"
+                benign_img2 = img_name.split("-")[2].split(".")[0] + ".jpg"
+                with open(triplet_file_name, "a") as f:
+                    f.write(f"{morph_img}\t{benign_img1}\t{benign_img2}\n")
+            except IndexError:
+                print(f"\nWarning: Could not parse triplet from filename: {img_name}")
 
-            with open(triplet_file_name, 'a') as f:
-                f.write(f"{morph_img}\t{benign_img1}\t{benign_img2}\n")
         img = cv2.imread(p)
         if img is not None:
-            if transfrom:
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                img = np.transpose(img, (2, 0, 1))  # (channel, height, width)
-                img = np.asarray([img], dtype="float32")
-                img = ((img / 255) - 0.5) / 0.5
-            if tensor:
-                img = torch.tensor(img, device=device)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = np.transpose(img, (2, 0, 1))
+            img = np.asarray([img], dtype="float32")
+            img = ((img / 255) - 0.5) / 0.5
+            img = torch.tensor(img)
             imgs.append(img)
 
-    if tensor:
-        imgs = torch.cat(imgs, dim=0)
-    return file_names, imgs
+    return file_names, torch.cat(imgs, dim=0) if imgs else ([], None)
 
 
-# Extract embeddings and save them to a file
+def extract_embeddings(model_name, model_path, src_path, dest_path, device):
+    """Extract embeddings from images using a specified model and save them."""
+    print(f"\nExtracting embeddings for dataset: {os.path.basename(src_path)}")
 
-def extract_embeddings(model_path="where_is_the_model_pth",
-                       src_path="where_to_load_images_for_embeddings",
-                       dest_path="where_to_save_embeddings"):
-    """Extract embeddings from images using a specified model."""
-
-    # prepare inference
+    # Prepare inference
     batchsize = 32
-    backbone = load_model(model, model_path, device)
+    backbone = load_model(model_name, model_path, device)
     backbone.to(device)
 
-    # Load Images and get file_names
-    img_paths, imgs_tensor = load_imgs(
-        src_path, transfrom=True, tensor=True)
+    # Load Images and get filenames
+    file_names, imgs_tensor = load_and_prep_images(src_path, os.path.basename(src_path))
+    if imgs_tensor is None:
+        print(f"No images found in {src_path}. Skipping embedding extraction.")
+        return
+
     imgs_tensor = torch.split(imgs_tensor, batchsize)
 
-    # compute embeddings
+    # Compute embeddings
     embs = []
-    for batch in tqdm(imgs_tensor, desc="Compute embeddings"):
-        batch.to(device)
+    for batch in tqdm(imgs_tensor, desc="Computing embeddings"):
+        with torch.no_grad():
+            batch = batch.to(device)
+            if model_name in ["CurricularFace", "AdaFace"]:
+                _embedding = backbone(batch)[0]
+            else:
+                _embedding = backbone(batch)
+            embs.extend(_embedding.cpu().numpy())
 
-        if model in ['CurricularFace', 'AdaFace']:
-            _embedding = backbone(batch)[0]
-        else:  # self.name in ['ElasticArcface', 'ElasticCosface']:
-            _embedding = backbone(batch)
+    # Save embeddings
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    np.save(dest_path + "_embs", np.array(embs))
+    np.save(dest_path + "_ids", np.array(file_names))
+    print("Embeddings saved successfully.")
 
-        _embedding = _embedding.detach().cpu().numpy()
-        if _embedding.shape[0] == 1:
-            embs.append(_embedding)
-        else:
-            embs.extend(_embedding)
-
-    # save embeddings
-    res = np.array(embs)
-    np.save(dest_path+"_embs", res)
-    np.save(dest_path+"_ids", img_paths)
-
-
-# Example Evaluation
 
 def get_reference(rid, id_list):
+    """Finds the index of a specific ID in an ID list."""
     for idx, i in enumerate(id_list):
         if i == rid:
-
             return idx
+    return None
 
 
 def eval_morph(triple, morphs, morph_id, ref, ref_ids, thresh=0):
-    scores = []
+    """Performs the MMPMR and IAPAR evaluation."""
     mated, non_mated, iapar_match, iapar_non_match = [], [], [], []
 
-    for i, (mid, id1, id2) in enumerate(triple):
-        morph = morphs[get_reference(mid, morph_id)]
-        emb1 = ref[get_reference(id1, ref_ids)]
-        emb2 = ref[get_reference(id2, ref_ids)]
+    for i, (mid, id1, id2) in enumerate(tqdm(triple, desc="Evaluating morphs")):
+        morph_idx = get_reference(mid, morph_id)
+        emb1_idx = get_reference(id1, ref_ids)
+        emb2_idx = get_reference(id2, ref_ids)
+
+        if morph_idx is None or emb1_idx is None or emb2_idx is None:
+            non_mated.append(None)  # Can't evaluate this triplet
+            continue
+
+        morph = morphs[morph_idx]
+        emb1 = ref[emb1_idx]
+        emb2 = ref[emb2_idx]
 
         cos1 = cos_sim(emb1, morph)
         cos2 = cos_sim(emb2, morph)
@@ -204,36 +166,110 @@ def eval_morph(triple, morphs, morph_id, ref, ref_ids, thresh=0):
         else:
             iapar_non_match.append(cos2)
 
-        scores.append(cos1)
-        scores.append(cos2)
+    total_evaluated = len(mated) + len(non_mated)
+    mmpmr = len(mated) / total_evaluated if total_evaluated > 0 else 0
 
-    mmpmr = len(mated) / (len(mated) + len(non_mated))
-    iapar = len(iapar_match) / (len(iapar_match) + len(iapar_non_match))
+    total_iapar = len(iapar_match) + len(iapar_non_match)
+    iapar = len(iapar_match) / total_iapar if total_iapar > 0 else 0
+
     return mmpmr, iapar
 
 
+# ==========================================================================================
+# New Main Execution Block
+# ==========================================================================================
+
 if __name__ == "__main__":
-    triplets_file = f'triplets/SYN-MAD22_{morphing_dataset}_triples_selfmade.txt'
-    # Extract embeddings only if they do not exist
-    if not os.path.exists(dest_path + "_embs.npy") or not os.path.exists(dest_path + "_ids.npy") or not os.path.exists(triplets_file):
-        extract_embeddings(model_path=model_path,
-                           src_path=morphing_path,
-                           dest_path=dest_path)
+    parser = argparse.ArgumentParser(
+        description="Face Morphing Embedding & Evaluation Toolkit"
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="ElasticFaceArc",
+        choices=["ElasticFaceArc", "ElasticFaceCos", "CurricularFace"],
+        help="Select the face recognition model to use.",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        required=True,
+        help="Name of the morphing dataset folder in SYN-MAD22 (e.g., FaceMorpher_aligned).",
+    )
+    parser.add_argument(
+        "--fmr",
+        type=float,
+        default=0.01,
+        choices=[0.01, 0.001],
+        help="FNMR@FMR threshold level (1% or 0.1%).",
+    )
+    args = parser.parse_args()
 
-    # Load embeddings
-    morphs = np.load(dest_path + "_embs.npy")
-    morph_ids = np.load(dest_path + "_ids.npy")
+    # --- Setup constants and paths based on arguments ---
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    REF_DATASET = "BonaFide_aligned"
 
-    # Adjust this in case you want to use the triplet files that were provided
-    triplets = np.genfromtxt(
-        triplets_file,
-        delimiter='\t',
-        dtype=str)
+    model_path = f"models/{args.model}.pth"
+    morph_dataset_path = f"SYN-MAD22/{args.dataset}/"
+    ref_dataset_path = f"SYN-MAD22/{REF_DATASET}/"
 
-    # Evaluate with a threshold
+    morph_emb_dest_path = f"embeddings/{args.model}_{args.dataset}"
+    ref_emb_dest_path = f"embeddings/{args.model}_{REF_DATASET}"
+    triplet_file_path = f"triplets/SYN-MAD22_{args.dataset}_triples_selfmade.txt"
+
+    # --- Select threshold based on arguments ---
+    thresholds = {
+        "ElasticFaceArc": {0.01: 0.21402553, 0.001: 0.29908442},
+        "ElasticFaceCos": {0.01: 0.18321043, 0.001: 0.26074028},
+        "CurricularFace": {0.01: 0.1901376, 0.001: 0.26934636},
+    }
+    thresh = thresholds[args.model][args.fmr]
+
+    # --- Intelligently generate missing files ---
+    print("--- Checking for necessary files ---")
+    # 1. Check for reference (Bona Fide) embeddings
+    if not os.path.exists(ref_emb_dest_path + "_embs.npy"):
+        extract_embeddings(
+            args.model, model_path, ref_dataset_path, ref_emb_dest_path, device
+        )
+
+    # 2. Check for morphed image embeddings and triplet file
+    if not os.path.exists(morph_emb_dest_path + "_embs.npy") or not os.path.exists(
+        triplet_file_path
+    ):
+        extract_embeddings(
+            args.model, model_path, morph_dataset_path, morph_emb_dest_path, device
+        )
+
+    print("\n--- All necessary files are present. Starting evaluation. ---")
+
+    # --- Load all data for evaluation ---
+    morphs = np.load(morph_emb_dest_path + "_embs.npy")
+    morph_ids = np.load(morph_emb_dest_path + "_ids.npy")
+
+    ref_embs = np.load(ref_emb_dest_path + "_embs.npy")
+    ref_ids = np.load(ref_emb_dest_path + "_ids.npy")
+
+    triplets = np.genfromtxt(triplet_file_path, delimiter="\t", dtype=str)
+
+    # --- Perform the evaluation ---
     mmpmr, iapar = eval_morph(
-        triple=triplets, morphs=morphs, morph_id=morph_ids, ref=morphs, ref_ids=morph_ids, thresh=thresh)
-    # Print results
-    print(
-        f"Model: {model}, Morphing Dataset: {morphing_dataset}, Threshold: {thresh}, FNMR@FMR: {fnmr_at_fmr}")
-    print(f"MMPMR: {mmpmr}, IAPAR: {iapar}")
+        triple=triplets,
+        morphs=morphs,
+        morph_id=morph_ids,
+        ref=ref_embs,
+        ref_ids=ref_ids,
+        thresh=thresh,
+    )
+
+    # --- Print final results ---
+    print("\n" + "=" * 40)
+    print("          EVALUATION RESULTS")
+    print("=" * 40)
+    print(f"Model: {args.model}")
+    print(f"Morphing Dataset: {args.dataset}")
+    print(f"Threshold (FNMR@FMR={args.fmr*100}%): {thresh}")
+    print("-" * 40)
+    print(f"MMPMR: {mmpmr:.4f}")
+    print(f"IAPAR: {iapar:.4f}")
+    print("=" * 40)
