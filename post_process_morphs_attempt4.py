@@ -1,7 +1,5 @@
 import cv2
-import numpy as np
 import os
-import argparse
 from tqdm import tqdm
 import shutil
 
@@ -27,7 +25,8 @@ def process_image(image_path, face_cascade):
 
     if len(faces) > 0:
         # Assume the largest detected face is the primary one
-        (x, y, w, h) = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)[0]
+        (x, y, w, h) = sorted(
+            faces, key=lambda f: f[2] * f[3], reverse=True)[0]
 
         # --- Enlarge the bounding box by 40% (20% on each side) ---
         center_x, center_y = x + w // 2, y + h // 2
@@ -43,7 +42,7 @@ def process_image(image_path, face_cascade):
         new_h = min(new_h, original_height - new_y)
 
         # Crop the image to the new enlarged bounding box
-        cropped_face = img[new_y : new_y + new_h, new_x : new_x + new_w]
+        cropped_face = img[new_y: new_y + new_h, new_x: new_x + new_w]
 
         # Resize the cropped face back to the original image size
         # This is crucial for the FR model to process it correctly.
@@ -60,17 +59,6 @@ def process_image(image_path, face_cascade):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Attempt 4: Post-process morphs using an enlarged face crop."
-    )
-    parser.add_argument(
-        "--input_dir", required=True, help="Directory of original morphs."
-    )
-    parser.add_argument(
-        "--output_dir", required=True, help="Directory to save processed morphs."
-    )
-    args = parser.parse_args()
-
     # --- Load the face detector ---
     if not os.path.exists(CASCADE_FILE):
         raise FileNotFoundError(
@@ -78,43 +66,69 @@ if __name__ == "__main__":
         )
     face_cascade = cv2.CascadeClassifier(CASCADE_FILE)
 
-    output_dataset_name = os.path.basename(args.output_dir)
-    triplet_file_path = f"triplets/SYN-MAD22_{output_dataset_name}_triples.txt"
-
-    os.makedirs(args.output_dir, exist_ok=True)
-    os.makedirs(os.path.dirname(triplet_file_path), exist_ok=True)
-
-    if os.path.exists(triplet_file_path):
-        os.remove(triplet_file_path)
-
-    print(
-        f"Starting post-processing (Attempt 4) from '{args.input_dir}' to '{args.output_dir}'..."
-    )
-
-    image_files = [
-        f
-        for f in os.listdir(args.input_dir)
-        if f.lower().endswith((".png", ".jpg", ".jpeg"))
+    datasets = [
+        "SYN-MAD22/FaceMorpher_aligned", "SYN-MAD22/MIPGAN_I_aligned", "SYN-MAD22/MIPGAN_II_aligned",
+        "SYN-MAD22/Webmorph_aligned", "SYN-MAD22/MorDIFF_aligned", "SYN-MAD22/OpenCV_aligned"
+    ]
+    outputs = [
+        "SYN-MAD22/FaceMorpher_processed_improved_alignment", "SYN-MAD22/MIPGAN_I_processed_improved_alignment", "SYN-MAD22/MIPGAN_II_processed_improved_alignment",
+        "SYN-MAD22/Webmorph_processed_improved_alignment", "SYN-MAD22/MorDIFF_processed_improved_alignment", "SYN-MAD22/OpenCV_processed_improved_alignment"
     ]
 
-    for filename in tqdm(image_files):
-        input_path = os.path.join(args.input_dir, filename)
-        output_path = os.path.join(args.output_dir, filename)
+    for input_dir, output_dir in zip(datasets, outputs):
+        output_dataset_name = os.path.basename(output_dir)
+        triplet_file_path = f"triplets/SYN-MAD22_{output_dataset_name}_triples.txt"
 
-        if "vs" in filename:
-            processed_image = process_image(input_path, face_cascade)
-            if processed_image is not None:
-                cv2.imwrite(output_path, processed_image)
+        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(os.path.dirname(triplet_file_path), exist_ok=True)
 
-            try:
-                benign_img1 = filename.split("-")[0] + ".jpg"
-                benign_img2 = filename.split("-")[2].split(".")[0] + ".jpg"
-                with open(triplet_file_path, "a") as f:
-                    f.write(f"{filename}\t{benign_img1}\t{benign_img2}\n")
-            except IndexError:
-                print(f"\nWarning: Could not parse triplet from filename: {filename}")
-        else:
-            shutil.copyfile(input_path, output_path)
+        if os.path.exists(triplet_file_path):
+            os.remove(triplet_file_path)
 
-    print(f"Post-processing complete. Processed images saved to '{args.output_dir}'.")
-    print(f"Triplet file created at '{triplet_file_path}'.")
+        print(
+            f"Starting post-processing from '{input_dir}' to '{output_dir}'...")
+
+        image_files = [
+            f
+            for f in os.listdir(input_dir)
+            if f.lower().endswith((".png", ".jpg", ".jpeg"))
+        ]
+
+        for filename in tqdm(image_files, desc=f"Processing {output_dataset_name}"):
+            input_path = os.path.join(input_dir, filename)
+            output_path = os.path.join(output_dir, filename)
+
+            if "vs" in filename:
+                processed_image = process_image(input_path, face_cascade)
+                if processed_image is not None:
+                    cv2.imwrite(output_path, processed_image)
+
+                try:
+                    benign_img1 = filename.split("-")[0] + ".jpg"
+                    benign_img2 = filename.split("-")[2].split(".")[0] + ".jpg"
+                    with open(triplet_file_path, "a") as f:
+                        f.write(f"{filename}\t{benign_img1}\t{benign_img2}\n")
+                except IndexError:
+                    print(
+                        f"\nWarning: Could not parse triplet from filename: {filename}")
+            elif "and" in filename:
+                processed_image = process_image(input_path, face_cascade)
+                if processed_image is not None:
+                    cv2.imwrite(output_path, processed_image)
+
+                try:
+                    benign_img1 = filename.split(
+                        "_")[1] + "_" + filename.split("_")[2] + ".jpg"
+                    benign_img2 = filename.split(
+                        "_")[4] + "_" + filename.split("_")[5].split(".")[0] + ".jpg"
+                    with open(triplet_file_path, "a") as f:
+                        f.write(f"{filename}\t{benign_img1}\t{benign_img2}\n")
+                except IndexError:
+                    print(
+                        f"\nWarning: Could not parse triplet from filename: {filename}")
+            else:
+                shutil.copyfile(input_path, output_path)
+
+        print(
+            f"Post-processing complete. Processed images saved to '{output_dir}'.")
+        print(f"Triplet file created at '{triplet_file_path}'.")

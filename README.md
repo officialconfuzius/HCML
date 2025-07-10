@@ -37,24 +37,29 @@ triplets/                # Triplet files for evaluation
 3. **Prepare Datasets**
    - Place your morphing datasets in the `SYN-MAD22/` directory.
 
-4. **Configure and Run**
-   - Edit `main.py` to select the model and dataset:
-     ```python
-     model = 'ElasticFaceCos'  # or 'ElasticFaceArc', 'CurricularFace'
-     morphing_dataset = 'FaceMorpher_aligned'  # or other dataset
+4. **How to Run**
+   - Run the evaluation script:
+      ```bash
+     python main.py --dataset <name_of_the_dataset_you_want_to_evaluate>
      ```
-   - Run the script:
-     ```bash
-     python main.py
+   - This will evaluate all the models on the given dataset at an FMR of 0.01 and 0.001
+   - The evaluation can also be specified for a specific FMR like this: 
+      ```bash
+     python main.py --dataset <name_of_the_dataset_you_want_to_evaluate> --fmr <fmr> --model <name_of_the_eval_model>
      ```
+   - The datasets are named just like in the SYN-MAD22 directory (e.g. `MorDIFF_aligned`)
    - Embeddings and IDs will be saved in the `embeddings/` folder.
-
+   - To generate our post-processed morphs run:
+      ```bash
+     python <name_of_the_attempt_script>.py
+     ```
+   - An example would be:
+      ```bash
+     python post_process_morphs.py
+     ```
+   - The post-processed datasets will be saved in the SYN-MAD22 directory
 5. **Results**
    - The script prints MMPMR and IAPAR metrics for the selected model and dataset.
-
-## Customization
-- To add new datasets, place them in `SYN-MAD22/` and update the `morphing_dataset` variable.
-- To use different models, add their `.pth` files to `models/` and update the `model` variable.
 
 ## License
 This project is for research and educational purposes only. See LICENSE for details.
