@@ -43,7 +43,7 @@ triplets/                # Triplet files for evaluation
      python main.py --dataset <name_of_the_dataset_you_want_to_evaluate>
      ```
    - This will evaluate all the models on the given dataset at an FMR of 0.01 and 0.001
-   - The evaluation can also be specified for a specific FMR like this: 
+   - The evaluation can also be specified for a specific FMR and model like this: 
       ```bash
      python main.py --dataset <name_of_the_dataset_you_want_to_evaluate> --fmr <fmr> --model <name_of_the_eval_model>
      ```
