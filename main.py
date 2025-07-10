@@ -142,7 +142,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         type=str,
-        default="ElasticFaceArc",
+        default=["ElasticFaceArc", "ElasticFaceCos", "CurricularFace"],
+        nargs="+",
         choices=["ElasticFaceArc", "ElasticFaceCos", "CurricularFace"],
     )
     parser.add_argument(
@@ -151,19 +152,12 @@ if __name__ == "__main__":
         required=True,
         help="Name of the morphing dataset folder (e.g., OpenCV_aligned).",
     )
-    parser.add_argument("--fmr", type=float, default=0.01, choices=[0.01, 0.001])
+    parser.add_argument("--fmr", type=float, nargs="+",
+                        default=[0.01, 0.001], choices=[0.01, 0.001])
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     REF_DATASET = "BonaFide_aligned"
-
-    # --- Construct paths ---
-    model_path = f"models/{args.model}.pth"
-    morph_dataset_path = f"SYN-MAD22/{args.dataset}/"
-    ref_dataset_path = f"SYN-MAD22/{REF_DATASET}/"
-
-    morph_emb_dest_path = f"embeddings/{args.model}_{args.dataset}"
-    ref_emb_dest_path = f"embeddings/{args.model}_{REF_DATASET}"
 
     # Use the official triplet file, removing '_aligned' from the dataset name to match file names
     triplet_dataset_name = args.dataset.replace("_aligned", "")
@@ -175,39 +169,51 @@ if __name__ == "__main__":
             f"Official triplet file not found! Please place it at: {triplet_file_path}"
         )
 
-    # --- Select threshold ---
+    # --- Thresholds for each model and FMR ---
     thresholds = {
         "ElasticFaceArc": {0.01: 0.21402553, 0.001: 0.29908442},
         "ElasticFaceCos": {0.01: 0.18321043, 0.001: 0.26074028},
         "CurricularFace": {0.01: 0.1901376, 0.001: 0.26934636},
     }
-    thresh = thresholds[args.model][args.fmr]
 
-    # --- Generate missing embeddings ---
-    print("--- Checking for necessary embedding files ---")
-    if not os.path.exists(ref_emb_dest_path + "_embs.npy"):
-        extract_embeddings(
-            args.model, model_path, ref_dataset_path, ref_emb_dest_path, device
-        )
-
-    if not os.path.exists(morph_emb_dest_path + "_embs.npy"):
-        extract_embeddings(
-            args.model, model_path, morph_dataset_path, morph_emb_dest_path, device
-        )
-
-    # --- Load all data and evaluate ---
-    print("\n--- All necessary files are present. Starting evaluation. ---")
-    morphs, morph_ids = np.load(morph_emb_dest_path + "_embs.npy"), np.load(
-        morph_emb_dest_path + "_ids.npy"
-    )
-    ref_embs, ref_ids = np.load(ref_emb_dest_path + "_embs.npy"), np.load(
-        ref_emb_dest_path + "_ids.npy"
-    )
+    # --- Load triplets once ---
     triplets = np.genfromtxt(triplet_file_path, delimiter="\t", dtype=str)
 
-    mmpmr, iapar = eval_morph(triplets, morphs, morph_ids, ref_embs, ref_ids, thresh)
+    for model_name in args.model:
+        model_path = f"models/{model_name}.pth"
+        morph_dataset_path = f"SYN-MAD22/{args.dataset}/"
+        ref_dataset_path = f"SYN-MAD22/{REF_DATASET}/"
 
-    print("\n" + "=" * 40 + "\n          EVALUATION RESULTS\n" + "=" * 40)
-    print(f"Model: {args.model}\nMorphing Dataset: {args.dataset}")
-    print(f"Threshold (FNMR@FMR={args.fmr*100}%): {thresh}")
-    print("-" * 40 + f"\nMMPMR: {mmpmr:.4f}\nIAPAR: {iapar:.4f}\n" + "=" * 40)
+        morph_emb_dest_path = f"embeddings/{model_name}_{args.dataset}"
+        ref_emb_dest_path = f"embeddings/{model_name}_{REF_DATASET}"
+
+        # --- Generate missing embeddings ---
+        print(
+            f"\n--- Checking for necessary embedding files for model: {model_name} ---")
+        if not os.path.exists(ref_emb_dest_path + "_embs.npy"):
+            extract_embeddings(
+                model_name, model_path, ref_dataset_path, ref_emb_dest_path, device
+            )
+
+        if not os.path.exists(morph_emb_dest_path + "_embs.npy"):
+            extract_embeddings(
+                model_name, model_path, morph_dataset_path, morph_emb_dest_path, device
+            )
+
+        # --- Load all data ---
+        morphs = np.load(morph_emb_dest_path + "_embs.npy")
+        morph_ids = np.load(morph_emb_dest_path + "_ids.npy")
+        ref_embs = np.load(ref_emb_dest_path + "_embs.npy")
+        ref_ids = np.load(ref_emb_dest_path + "_ids.npy")
+
+        for fmr_value in args.fmr:
+            thresh = thresholds[model_name][fmr_value]
+
+            mmpmr, iapar = eval_morph(
+                triplets, morphs, morph_ids, ref_embs, ref_ids, thresh)
+
+            print("\n" + "=" * 40 + "\n          EVALUATION RESULTS\n" + "=" * 40)
+            print(f"Model: {model_name}\nMorphing Dataset: {args.dataset}")
+            print(f"Threshold (FNMR@FMR={fmr_value*100}%): {thresh}")
+            print(
+                "-" * 40 + f"\nMMPMR: {mmpmr:.4f}\nIAPAR: {iapar:.4f}\n" + "=" * 40)

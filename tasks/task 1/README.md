@@ -2,6 +2,44 @@
 
 Assess the effectiveness of current attack methods by measuring their successful attack rates. This involves analyzing various attack strategies and quantifying their ability to bypass recognition systems.
 
+---
+
+### Interpretation of Baseline Evaluation Tables
+
+The tables below report the **attack success rates** (i.e., the proportion of morphs that successfully bypass the face recognition system) for different morphing datasets and face recognition models. The rates are shown for two security thresholds:
+- **FNMR@FMR=1%** (Table 1): False Non-Match Rate at a False Match Rate of 1%
+- **FNMR@FMR=0.1%** (Table 2): False Non-Match Rate at a False Match Rate of 0.1% (stricter)
+
+**Columns:**  Each column is a different face recognition model: ElasticFaceArc, ElasticFaceCos, CurricularFace. Each row is a different morphing dataset (e.g., FaceMorpher_aligned, Webmorph_aligned, etc.).
+
+#### Key Observations
+- **Model Sensitivity:**
+  - *ElasticFaceCos* is highly robust to FaceMorpher_aligned morphs (very low success rate: 0.0020 at both thresholds), but less so for other datasets.
+  - *ElasticFaceArc* and *CurricularFace* are generally more vulnerable, with high success rates for most datasets.
+- **Dataset Difficulty:**
+  - *OpenCV_aligned* and *Webmorph_aligned* morphs are the most effective at bypassing all models (success rates >0.98 in most cases).
+  - *FaceMorpher_aligned* is only effective against ElasticFaceArc and CurricularFace, not ElasticFaceCos.
+  - *MIPGAN_II_aligned* is much less effective against CurricularFace at both thresholds (success rates near zero).
+- **Effect of Stricter Threshold (0.1%):**
+  - All models and datasets see a drop in success rates at the stricter threshold, but the relative ranking of datasets and models remains similar.
+  - The drop is most pronounced for MIPGAN_II_aligned and MIPGAN_I_aligned.
+- **Best and Worst Cases:**
+  - *Best attack:* OpenCV_aligned morphs, which almost always succeed regardless of the model or threshold.
+  - *Worst attack:* FaceMorpher_aligned against ElasticFaceCos, and MIPGAN_II_aligned against CurricularFace.
+
+**Summary:**
+- *ElasticFaceCos* is the most robust model against FaceMorpher_aligned morphs, but not against others.
+- *OpenCV_aligned* and *Webmorph_aligned* morphs are the most dangerous, consistently achieving high attack success rates.
+- Stricter thresholds reduce attack success, but not enough to stop the best morphs.
+- The effectiveness of a morphing attack depends both on the morphing method and the recognition model.
+
+**Conclusion:**
+Some morphing methods can still reliably fool even strong face recognition models, especially with certain datasets. However, model choice and thresholding can significantly impact system security.
+
+---
+
+**Table 1: Attack Success Rates (FNMR@FMR=1%) for Each Model and Morphing Dataset**
+
 <table>
     <thead>
         <tr>
@@ -14,7 +52,7 @@ Assess the effectiveness of current attack methods by measuring their successful
     <tbody>
         <tr>
             <td>FaceMorpher_aligned</td>
-            <td align="center">0.9470</td>
+            <td align="center">0.9430</td>
             <td align="center">0.0020</td>
             <td align="center">0.9500</td>
         </tr>
@@ -38,7 +76,7 @@ Assess the effectiveness of current attack methods by measuring their successful
         </tr>
         <tr>
             <td>MIPGAN_II_aligned</td>
-            <td align="center">0.9099</td>
+            <td align="center">0.8779</td>
             <td align="center">0.8989</td>
             <td align="center">0.0030</td>
         </tr>
@@ -48,6 +86,56 @@ Assess the effectiveness of current attack methods by measuring their successful
             <td align="center"><b>0.9959</b></td>
             <td align="center"><b>0.9929</b></td>
         </tr>
+    </tbody>
+</table>
+
+**Table 2: Attack Success Rates (FNMR@FMR=0.1%) for Each Model and Morphing Dataset**
+
+<table>
+    <thead>
+        <tr>
+            <th>Dataset</th>
+            <th>ElasticFaceArc<br><sub>Success Rate</sub></th>
+            <th>ElasticFaceCos<br><sub>Success Rate</sub></th>
+            <th>CurricularFace<br><sub>Success Rate</sub></th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>FaceMorpher_aligned</td>
+            <td align="center">0.8710</td>
+            <td align="center">0.0020</td>
+            <td align="center">0.8780</td>
+        </tr>
+        <tr>
+            <td>Webmorph_aligned</td>
+            <td align="center">0.9800</td>
+            <td align="center">0.9780</td>
+            <td align="center">0.9780</td>
+        </tr>
+        <tr>
+            <td>MorDIFF_aligned</td>
+            <td align="center">0.8730</td>
+            <td align="center">0.9300</td>
+            <td align="center">0.8950</td>
+        </tr>
+        <tr>
+            <td>MIPGAN_I_aligned</td>
+            <td align="center">0.6900</td>
+            <td align="center">0.7360</td>
+            <td align="center">0.7080</td>
+        </tr>
+        <tr>
+            <td>MIPGAN_II_aligned</td>
+            <td align="center">0.6046</td>
+            <td align="center">0.6436</td>
+            <td align="center">0.0010</td>
+        </tr>
+        <tr>
+            <td>OpenCV_aligned</td>
+            <td align="center"><b>0.9289</b></td>
+            <td align="center"><b>0.9644</b></td>
+            <td align="center"><b>0.9461</b></td>
         </tr>
     </tbody>
 </table>
