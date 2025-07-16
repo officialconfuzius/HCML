@@ -26,14 +26,11 @@ def load_detector_model(model_path):
     return model
 
 
-def load_dataset(dataset_path, kind):
+def load_dataset(dataset_path):
     # Load dataset
     img_paths, file_names = image_iter(dataset_path)
     dataset = TestDataset(
         paths=img_paths,
-        # Assuming labels are 0 for benign and 1 for morphing
-        labels=[0] *
-        len(img_paths) if kind == "benign" else [1] * len(img_paths),
     )
     return dataset, file_names
 
@@ -62,7 +59,6 @@ def get_performance(prediction_scores, gt_labels, pos_label=1, verbose=True):
     """
     fpr, tpr, threshold = roc_curve(
         gt_labels, prediction_scores, pos_label=pos_label)
-    print(f'FPR: {fpr}, TPR: {tpr}, Thresholds: {threshold}')
     eer, eer_th, _ = get_eer_threhold(fpr, tpr, threshold)
     # test_auc = auc(fpr, tpr)
 
@@ -81,7 +77,8 @@ def test_dataset(dataset, model_path, output_path):
 
     print('Number of test images:', len(test_loader.dataset))
 
-    mse_criterion = torch.nn.MSELoss(reduction='none').cuda()
+    mse_criterion = torch.nn.MSELoss(reduction='none').cuda(
+    ) if torch.cuda.is_available() else torch.nn.MSELoss(reduction='none').cpu()
 
     test_scores, gt_labels, test_scores_dict = [], [], []
 
@@ -91,7 +88,8 @@ def test_dataset(dataset, model_path, output_path):
                 raw, labels, img_ids = data['images'].cuda(
                 ), data['labels'], data['img_path']
             else:
-                raw, labels, img_ids = data['images'], data['labels'], data['img_path']
+                raw, labels, img_ids = data['images'].cpu(
+                ), data['labels'], data['img_path']
             _, output_raw = detector(raw)
 
             scores = mse_criterion(output_raw, raw).cpu().data.numpy()
@@ -131,13 +129,6 @@ if __name__ == "__main__":
         required=False,
         help="Configure your output path here."
     )
-    parser.add_argument(
-        "--kind",
-        type=str,
-        required=True,
-        help="Benign or morphing dataset.",
-        choices=["benign", "morphing"]
-    )
 
     args = parser.parse_args()
     output_dir = args.output_directory if args.output_directory else ""
@@ -154,8 +145,7 @@ if __name__ == "__main__":
     if not os.path.exists(dataset_path):
         raise FileNotFoundError(f"Dataset path {dataset_path} does not exist.")
 
-    # Load dataset
-    kind = args.kind
-    dataset, file_name = load_dataset(dataset_path, kind)
+    # create the dataset
+    dataset, file_name = load_dataset(dataset_path)
 
     test_dataset(dataset, model_path, output_path)

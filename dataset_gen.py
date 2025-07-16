@@ -14,10 +14,9 @@ PRE__STD = [0.5, 0.5, 0.5]
 
 class TestDataset(Dataset):
 
-    def __init__(self, paths, labels, input_shape=(112, 112)):
+    def __init__(self, paths, input_shape=(112, 112)):
         # self.image_dir = image_dir
         self.paths = paths
-        self.labels = labels
         self.composed_transformations = albumentations.Compose([
             albumentations.SmallestMaxSize(max_size=input_shape[0]),
             albumentations.CenterCrop(
@@ -27,11 +26,11 @@ class TestDataset(Dataset):
         ])
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.paths)
 
     def __getitem__(self, idx):
         img_path = self.paths[idx]
-        label = self.labels[idx]
+        label = 1 if "vs" in img_path else 1 if "and" in img_path else 0
         image = cv2.imread(img_path)
 
         image = self.composed_transformations(image=image)['image']
