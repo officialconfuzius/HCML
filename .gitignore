@@ -6,6 +6,7 @@ triplets
 *.zip
 *.pdf
 *.pptx
+*.csv
 .DS_Store
 __pycache__
 embeddings

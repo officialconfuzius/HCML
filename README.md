@@ -40,26 +40,36 @@ triplets/                # Triplet files for evaluation
 4. **How to Run**
    - Run the evaluation script:
       ```bash
-     python main.py --dataset <name_of_the_dataset_you_want_to_evaluate>
-     ```
-   - This will evaluate all the models on the given dataset at an FMR of 0.01 and 0.001
+      python main.py --dataset <name_of_the_dataset_you_want_to_evaluate>
+      ```
+   - This will evaluate all the models on the given dataset at an FMR of 0.01 and 0.001.
    - The evaluation can also be specified for a specific FMR and model like this: 
       ```bash
-     python main.py --dataset <name_of_the_dataset_you_want_to_evaluate> --fmr <fmr> --model <name_of_the_eval_model>
-     ```
-   - The datasets are named just like in the SYN-MAD22 directory (e.g. `MorDIFF_aligned`)
+      python main.py --dataset <name_of_the_dataset_you_want_to_evaluate> --fmr <fmr> --model <name_of_the_eval_model>
+      ```
+   - The datasets are named just like in the SYN-MAD22 directory (e.g. `MorDIFF_aligned`).
    - Embeddings and IDs will be saved in the `embeddings/` folder.
    - To generate our post-processed morphs run:
       ```bash
-     python <name_of_the_attempt_script>.py
-     ```
+      python <name_of_the_attempt_script>.py
+      ```
    - An example would be:
       ```bash
-     python post_process_morphs.py
-     ```
-   - The post-processed datasets will be saved in the SYN-MAD22 directory
+      python post_process_morphs.py
+      ```
+   - The post-processed datasets will be saved in the SYN-MAD22 directory.
+
+   **Running the Detector**
+   - To run the morphing attack detector, use:
+      ```bash
+      python detector.py --dataset <name_of_the_dataset_you_want_to_evaluate> --kind <benign_or_morph> --output-dir <optional_output_dir>
+      ```
+   - The detector will output detection results and metrics for the selected dataset.
+   - The default output directory is the root directory
+
 5. **Results**
-   - The script prints MMPMR and IAPAR metrics for the selected model and dataset.
+   - The evaluation script prints MMPMR and IAPAR metrics for the selected model and dataset.
+   - The detector gives an output csv of all assessed images and it also prints the EER.
 
 ## License
 This project is for research and educational purposes only. See LICENSE for details.
