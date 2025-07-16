@@ -147,7 +147,7 @@ Enhance existing morphs through both automatic and manual post-processing techni
 ### First Approach: 
 We began by focusing on the orange dots that appeared as artifacts in the morphed face images. Rather than simply deleting these pixels, we used a computer vision technique called inpainting to seamlessly replace them. This approach aimed to enhance the visual integrity of the morphed face. Since face recognition models are trained on millions of real faces, they are highly sensitive to unnatural features. Artifacts like orange dots can disrupt the model’s perception, lowering the similarity score. By removing these artifacts, we made the faces appear more natural to the model, which led to improved similarity scores.
 
-Here’s a concise technical summary of the two steps (the code can be found in the file 'post_process_morphs.py'):
+Here’s a concise technical summary of the two steps (the code can be found in the file `post_process_morphs.py`):
 
 #### Detection (Mask Creation):
 
