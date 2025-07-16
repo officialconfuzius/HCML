@@ -62,7 +62,11 @@ triplets/                # Triplet files for evaluation
    **Running the Detector**
    - To run the morphing attack detector, use:
       ```bash
-      python detector.py --dataset <name_of_the_dataset_you_want_to_evaluate> --kind <benign_or_morph> --output-dir <optional_output_dir>
+      python detector.py --dataset <name_of_the_dataset_you_want_to_evaluate> --output_directory <optional_output_dir>
+      ```
+   - An example would be:
+      ```bash
+      python detector.py --dataset FaceMorpher_aligned --output_directory out
       ```
    - The detector will output detection results and metrics for the selected dataset.
    - The default output directory is the root directory
