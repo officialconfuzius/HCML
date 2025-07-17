@@ -18,7 +18,6 @@ The following table compares the EER of the detector on the original (baseline) 
 +------------------+------------------+-------------------+---------------+--------------------------+
 
 
-<img width="706" height="559" alt="image" src="https://github.com/user-attachments/assets/67555cfd-d567-4206-9138-2fa1301cce35" />
 
 ### Interpretation of Results
 
@@ -29,3 +28,9 @@ Massive Impact on High-Fidelity Morphs: The attack was most devastating, in rela
 Most Vulnerable Dataset: The MorDIFF dataset showed the highest final error rate (35.50%) and the largest absolute increase (+27.6 points). This means that while the baseline MorDIFF images were moderately detectable, the processing made them extremely evasive.
 
 Conclusion: the experiment conclusively demonstrates that frequency domain filtering is a highly effective evasion technique against reconstruction-based morphing attack detectors like AEMAD. By removing the subtle high-frequency evidence of manipulation, we can significantly degrade the detector's performance across a wide variety of morphing methods.
+
+
+Attached is the visual effect caused to the photo after the smoothening filter.
+As we can observe the top photo (Original) is indeed more rough then the bottom one (the proccesed version).
+
+<img width="706" height="559" alt="image" src="https://github.com/user-attachments/assets/67555cfd-d567-4206-9138-2fa1301cce35" />
