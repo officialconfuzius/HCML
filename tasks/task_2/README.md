@@ -155,9 +155,9 @@ To check whether or not the attacks would still be successful, we re-evaluated t
         </tr>
         <tr>
             <td>Webmorph_aligned</td>
-            <td align="center">0.9760</td>
-            <td align="center">0.9840</td>
-            <td align="center">0.9820</td>
+            <td align="center"><b>0.9760</b></td>
+            <td align="center"><b>0.9840</b></td>
+            <td align="center"><b>0.9820</b></td>
         </tr>
         <tr>
             <td>MorDIFF_aligned</td>
@@ -179,9 +179,9 @@ To check whether or not the attacks would still be successful, we re-evaluated t
         </tr>
         <tr>
             <td>OpenCV_aligned</td>
-            <td align="center"><b>0.9492</b></td>
-            <td align="center"><b>0.9715</b></td>
-            <td align="center"><b>0.9533</b></td>
+            <td align="center">0.9492</td>
+            <td align="center">0.9715</td>
+            <td align="center">0.9533</td>
         </tr>
     </tbody>
 </table>
