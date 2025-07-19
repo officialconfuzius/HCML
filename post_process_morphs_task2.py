@@ -95,6 +95,22 @@ def main():
                     print(
                         f"\nWarning: Could not parse triplet from filename: {filename}"
                     )
+        elif "and" in filename:
+            image = cv2.imread(input_path)
+            processed_image = apply_frequency_filter(image, args.radius)
+            if processed_image is not None:
+                cv2.imwrite(output_path, processed_image)
+
+            try:
+                benign_img1 = filename.split(
+                    "_")[1] + "_" + filename.split("_")[2] + ".jpg"
+                benign_img2 = filename.split(
+                    "_")[4] + "_" + filename.split("_")[5].split(".")[0] + ".jpg"
+                with open(triplet_file_path, "a") as f:
+                    f.write(f"{filename}\t{benign_img1}\t{benign_img2}\n")
+            except IndexError:
+                print(
+                    f"\nWarning: Could not parse triplet from filename: {filename}")
         else:
             # This is a benign (source) image, so we just copy it without modification
             shutil.copyfile(input_path, output_path)
